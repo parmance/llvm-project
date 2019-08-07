@@ -65,6 +65,7 @@ public:
     msp430,         // MSP430: msp430
     ppc,            // PPC: powerpc
     ppcle,          // PPCLE: powerpc (little endian)
+
     ppc64,          // PPC64: powerpc64, ppu
     ppc64le,        // PPC64LE: powerpc64le
     r600,           // R600: AMD GPUs HD2XXX - HD6XXX
@@ -102,7 +103,10 @@ public:
     renderscript32, // 32-bit RenderScript
     renderscript64, // 64-bit RenderScript
     ve,             // NEC SX-Aurora Vector Engine
-    LastArchType = ve
+    spirv32,        // SPIR-V with 32-bit pointers
+    spirv64,        // SPIR-V with 64-bit pointers
+    spirvlogical,   // SPIR-V with logical addressing
+    LastArchType = spirvlogical
   };
   enum SubArchType {
     NoSubArch,
@@ -232,7 +236,9 @@ public:
     CoreCLR,
     Simulator, // Simulator variants of other systems, e.g., Apple's iOS
     MacABI, // Mac Catalyst variant of Apple's iOS deployment target.
-    LastEnvironmentType = MacABI
+    OpenCL,
+    Vulkan,
+    LastEnvironmentType = Vulkan
   };
   enum ObjectFormatType {
     UnknownObjectFormat,
@@ -243,6 +249,7 @@ public:
     MachO,
     Wasm,
     XCOFF,
+    SPIRV
   };
 
 private:
@@ -482,6 +489,14 @@ public:
     return isMacOSX() || (isOSDarwin() && (isSimulatorEnvironment() ||
                                            isMacCatalystEnvironment()));
   }
+  
+  bool isOpenCLEnvironment() const {
+    return getEnvironment() == Triple::OpenCL;
+  }
+
+  bool isVulkanEnvironment() const {
+    return getEnvironment() == Triple::Vulkan;
+  }
 
   bool isOSNetBSD() const {
     return getOS() == Triple::NetBSD;
@@ -681,10 +696,16 @@ public:
     return getArch() == Triple::spir || getArch() == Triple::spir64;
   }
 
-  /// Tests whether the target is SPIR-V (32/64-bit).
-  bool isSPIRV() const {
+  /// Tests whether the target is SPIR-V (32- or 64-bit).
+  bool isSPIRVPhysical() const {
     return getArch() == Triple::spirv32 || getArch() == Triple::spirv64;
   }
+
+  /// Tests whether the target is SPIR-V with logical addressing
+  bool isSPIRVLogical() const { return getArch() == spirvlogical; }
+
+  /// Tests whether the target is SPIR-V (32/64-bit or logical).
+  bool isSPIRV() const { return isSPIRVPhysical() || isSPIRVLogical(); }
 
   /// Tests whether the target is NVPTX (32- or 64-bit).
   bool isNVPTX() const {
