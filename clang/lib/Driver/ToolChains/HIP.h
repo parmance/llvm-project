@@ -43,6 +43,11 @@ private:
                            const InputInfoList &Inputs, const InputInfo &Output,
                            const llvm::opt::ArgList &Args) const;
 
+  void constructSpirLinkCommand(Compilation &C, const JobAction &JA,
+                                const InputInfoList &Inputs,
+                                const InputInfo &Output,
+                                const llvm::opt::ArgList &Args) const;
+
   // Construct command for creating Object from HIP fatbin.
   void constructGenerateObjFileFromHIPFatBinary(Compilation &C,
                                                 const InputInfo &Output,
