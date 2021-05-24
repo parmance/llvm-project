@@ -1537,6 +1537,17 @@ static unsigned ArgInfoAddressSpace(LangAS AS) {
     return 5;
   case LangAS::opencl_global_host:
     return 6;
+
+    // These are for HIP/Cuda programs targeted at SPIR-V.
+  case LangAS::cuda_device:
+    return 1;
+  case LangAS::cuda_shared:
+    return 3;
+  case LangAS::cuda_constant:
+    // opencl_constant is more restrictive then cuda_constant and, therefore,
+    // cuda_constant is mapped to opencl_global.
+    return 1;
+
   default:
     return 0; // Assume private.
   }
@@ -1614,9 +1625,19 @@ void CodeGenModule::GenOpenCLArgMetadata(llvm::Function *Fn,
         QualType pointeeTy = ty->getPointeeType();
 
         // Get address qualifier.
+        // For HIP-to-SPIR-V, force AS of pointer arguments to global.
+        if (getContext().getLangOpts().HIP &&
+            getContext().getTargetInfo().getTriple().isSPIR()) {
+          // TODO/FIXME: If SPIRABIInfo is changed to coerce kernel pointer
+          // arguments to have __global qualifer, would it make this unneeded?
+          addressQuals.push_back(
+              llvm::ConstantAsMetadata::get(CGF->Builder.getInt32(
+                  ArgInfoAddressSpace(LangAS::opencl_global))));
+        } else {
         addressQuals.push_back(
             llvm::ConstantAsMetadata::get(CGF->Builder.getInt32(
                 ArgInfoAddressSpace(pointeeTy.getAddressSpace()))));
+        }
 
         // Get argument type name.
         std::string typeName = getTypeSpelling(pointeeTy) + "*";

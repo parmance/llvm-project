@@ -591,7 +591,9 @@ CodeGenFunction::DecodeAddrUsedInPrologue(llvm::Value *F,
 void CodeGenFunction::EmitOpenCLKernelMetadata(const FunctionDecl *FD,
                                                llvm::Function *Fn)
 {
-  if (!FD->hasAttr<OpenCLKernelAttr>())
+  if (!FD->hasAttr<OpenCLKernelAttr>() &&
+      !(FD->hasAttr<CUDAGlobalAttr>() && getLangOpts().HIP &&
+        getTarget().getTriple().isSPIR()))
     return;
 
   llvm::LLVMContext &Context = getLLVMContext();
@@ -893,7 +895,8 @@ void CodeGenFunction::StartFunction(GlobalDecl GD, QualType RetTy,
   if (D && D->hasAttr<CFICanonicalJumpTableAttr>())
     Fn->addFnAttr("cfi-canonical-jump-table");
 
-  if (getLangOpts().OpenCL) {
+  if (getLangOpts().OpenCL ||
+      (getLangOpts().HIP && Target.getTriple().isSPIR())) {
     // Add metadata for a kernel function.
     if (const FunctionDecl *FD = dyn_cast_or_null<FunctionDecl>(D))
       EmitOpenCLKernelMetadata(FD, Fn);
