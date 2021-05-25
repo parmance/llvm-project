@@ -2196,18 +2196,23 @@ static void emitUsed(CodeGenModule &CGM, StringRef Name,
   if (List.empty())
     return;
 
+  // Generate llvm.used with target specific AS from language's default AS.
+  auto LangAS = CGM.GetGlobalVarAddressSpace(nullptr);
+  auto GlobalAS = CGM.getContext().getTargetAddressSpace(LangAS);
+  auto GVTy = CGM.Int8Ty->getPointerTo(GlobalAS);
+
   // Convert List to what ConstantArray needs.
   SmallVector<llvm::Constant*, 8> UsedArray;
   UsedArray.resize(List.size());
   for (unsigned i = 0, e = List.size(); i != e; ++i) {
     UsedArray[i] =
         llvm::ConstantExpr::getPointerBitCastOrAddrSpaceCast(
-            cast<llvm::Constant>(&*List[i]), CGM.Int8PtrTy);
+            cast<llvm::Constant>(&*List[i]), GVTy);
   }
 
   if (UsedArray.empty())
     return;
-  llvm::ArrayType *ATy = llvm::ArrayType::get(CGM.Int8PtrTy, UsedArray.size());
+  llvm::ArrayType *ATy = llvm::ArrayType::get(GVTy, UsedArray.size());
 
   auto *GV = new llvm::GlobalVariable(
       CGM.getModule(), ATy, false, llvm::GlobalValue::AppendingLinkage,
