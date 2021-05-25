@@ -10124,6 +10124,7 @@ public:
   }
 
   unsigned getOpenCLKernelCallingConv() const override;
+  void setCUDAKernelCallingConvention(const FunctionType *&FT) const override;
 };
 
 } // End anonymous namespace.
@@ -10143,6 +10144,13 @@ void computeSPIRKernelABIInfo(CodeGenModule &CGM, CGFunctionInfo &FI) {
 
 unsigned SPIRTargetCodeGenInfo::getOpenCLKernelCallingConv() const {
   return llvm::CallingConv::SPIR_KERNEL;
+}
+
+/// For translating HIP/CUDA kernel to SPIR kernel.
+void SPIRTargetCodeGenInfo::setCUDAKernelCallingConvention(
+    const FunctionType *&FT) const {
+  FT = getABIInfo().getContext().adjustFunctionType(
+      FT, FT->getExtInfo().withCallingConv(CC_OpenCLKernel));
 }
 
 static bool appendType(SmallStringEnc &Enc, QualType QType,
