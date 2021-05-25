@@ -54,9 +54,13 @@ static const unsigned SPIRDefIsGenMap[] = {
     0, // opencl_generic
     0, // opencl_global_device
     0, // opencl_global_host
-    0, // cuda_device
-    0, // cuda_constant
-    0, // cuda_shared
+    // cuda_* AS mapping is for HIP-to-SPIRV.
+    1, // cuda_device
+    // cuda_constant can be casted to default/"flat" pointer, but in SPIR-V
+    // casts between constant and generic pointers are not allowed. For this
+    // reason cuda_constant is mapped to SPIR-V global.
+    1, // cuda_constant
+    3, // cuda_shared
     1, // sycl_global
     5, // sycl_global_device
     6, // sycl_global_host
@@ -144,7 +148,8 @@ public:
     // language semantic along with the semantics of embedded C's default
     // address space in the same address space map. Hence the map needs to be
     // reset to allow mapping to the desired value of 'Default' entry for SYCL.
-    setAddressSpaceMap(/*DefaultIsGeneric=*/Opts.SYCLIsDevice);
+    setAddressSpaceMap(/*DefaultIsGeneric=*/Opts.SYCLIsDevice ||
+                       (Opts.HIP && Opts.CUDAIsDevice));
   }
 
   void setSupportedOpenCLOpts() override {
