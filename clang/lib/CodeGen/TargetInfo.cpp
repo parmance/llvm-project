@@ -10135,7 +10135,7 @@ void SPIRABIInfo::setCCs() {
 namespace clang {
 namespace CodeGen {
 void computeSPIRKernelABIInfo(CodeGenModule &CGM, CGFunctionInfo &FI) {
-  DefaultABIInfo SPIRABI(CGM.getTypes());
+  SPIRABIInfo SPIRABI(CGM.getTypes());
   SPIRABI.computeInfo(FI);
 }
 }
