@@ -10105,12 +10105,51 @@ void XCoreTargetCodeGenInfo::emitTargetMetadata(
 
 namespace {
 class SPIRABIInfo : public DefaultABIInfo {
+
 public:
   SPIRABIInfo(CodeGenTypes &CGT) : DefaultABIInfo(CGT) { setCCs(); }
+
+  ABIArgInfo classifyKernelArgumentType(QualType Ty) const;
+
+  void computeInfo(CGFunctionInfo &FI) const override;
 
 private:
   void setCCs();
 };
+
+ABIArgInfo SPIRABIInfo::classifyKernelArgumentType(QualType Ty) const {
+  if (getContext().getLangOpts().HIP) {
+    // Coerce scalar pointer arguments from default/unqualified pointers to
+    // global ones.
+    llvm::Type *LTy = CGT.ConvertType(Ty);
+    auto DefaultAS = getContext().getTargetAddressSpace(LangAS::Default);
+    auto GlobalAS = getContext().getTargetAddressSpace(LangAS::cuda_device);
+    if (LTy->isPointerTy() && LTy->getPointerAddressSpace() == DefaultAS) {
+      LTy = llvm::PointerType::get(
+          cast<llvm::PointerType>(LTy)->getElementType(), GlobalAS);
+      return ABIArgInfo::getDirect(LTy, 0, nullptr, false);
+    }
+  }
+  return classifyArgumentType(Ty);
+}
+
+void SPIRABIInfo::computeInfo(CGFunctionInfo &FI) const {
+  // The logic is same as in DefaultABIInfo with exception on thekernel
+  // arguments.
+  llvm::CallingConv::ID CC = FI.getCallingConvention();
+
+  if (!getCXXABI().classifyReturnType(FI))
+    FI.getReturnInfo() = classifyReturnType(FI.getReturnType());
+
+  for (auto &I : FI.arguments()) {
+    if (CC == llvm::CallingConv::SPIR_KERNEL) {
+      I.info = classifyKernelArgumentType(I.type);
+    } else {
+      I.info = classifyArgumentType(I.type);
+    }
+  }
+}
+
 } // end anonymous namespace
 namespace {
 class SPIRTargetCodeGenInfo : public TargetCodeGenInfo {
