@@ -146,6 +146,23 @@ void AMDGCN::Linker::constructSpirLinkCommand(
     TempOutput = OptOutput;
   }
 
+  // TODO: merge with above?
+  if (Paths.size()) {
+    // TODO: Make the option reject multiple instances.
+    assert(Paths.size() == 1);
+    llvm::SmallString<0> PassPath(Paths[0]);
+    llvm::sys::path::append(PassPath, "libLLVMHipTexture.so");
+    const char *PassPathCStr = C.getArgs().MakeArgString(PassPath);
+    const char *OptOutput = getTempFile(C, Name + "-tex", "bc", SaveTemps);
+    ArgStringList OptArgs{TempOutput,   "-enable-new-pm=0", "-load",
+                          PassPathCStr, "-hip-texture",   "-o",
+                          OptOutput};
+    const char *Opt = Args.MakeArgString(getToolChain().GetProgramPath("opt"));
+    C.addCommand(std::make_unique<Command>(
+        JA, *this, ResponseFileSupport::None(), Opt, OptArgs, Inputs, Output));
+    TempOutput = OptOutput;
+  }
+
   // Translate bitcode to SPIR-V.
   //
   // FIXME: SPV_INTEL_subgroups is HIPLZ requirement. We should propably pass
