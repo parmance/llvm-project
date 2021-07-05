@@ -98,7 +98,8 @@ using namespace clang;
 using namespace llvm::opt;
 
 static llvm::Triple getHIPOffloadTargetTriple() {
-  static const llvm::Triple T("amdgcn-amd-amdhsa");
+  // FIXME: Triple should be get from an option (e.g. --offload).
+  static const llvm::Triple T("spir64-unknown-unknown");
   return T;
 }
 
@@ -2989,9 +2990,13 @@ class OffloadingActionBuilder final {
             // When GPU sanitizer is not enabled, we follow the conventional
             // compiler phases, including backend and assemble phases.
             ActionList AL;
-            auto BackendAction = C.getDriver().ConstructPhaseAction(
+            // Spir targets do not a backend so emit LLVM bitcode instead. The
+            // bitcode is translated to SPIR-V by using llvm-spirv tool on
+            // linking phase.
+            bool EmitLLVM = ToolChains.front()->getTriple().isSPIR();
+            Action *BackendAction = C.getDriver().ConstructPhaseAction(
                 C, Args, phases::Backend, CudaDeviceActions[I],
-                AssociatedOffloadKind);
+                AssociatedOffloadKind, EmitLLVM);
             auto AssembleAction = C.getDriver().ConstructPhaseAction(
                 C, Args, phases::Assemble, BackendAction,
                 AssociatedOffloadKind);
@@ -3917,7 +3922,7 @@ void Driver::BuildActions(Compilation &C, DerivedArgList &Args,
 
 Action *Driver::ConstructPhaseAction(
     Compilation &C, const ArgList &Args, phases::ID Phase, Action *Input,
-    Action::OffloadKind TargetDeviceOffloadKind) const {
+    Action::OffloadKind TargetDeviceOffloadKind, bool ForceEmitLLVM) const {
   llvm::PrettyStackTraceString CrashInfo("Constructing phase actions");
 
   // Some types skip the assembler phase (e.g., llvm-bc), but we can't
@@ -4006,7 +4011,8 @@ Action *Driver::ConstructPhaseAction(
     if (Args.hasArg(options::OPT_emit_llvm) ||
         (TargetDeviceOffloadKind == Action::OFK_HIP &&
          Args.hasFlag(options::OPT_fgpu_rdc, options::OPT_fno_gpu_rdc,
-                      false))) {
+                      false)) ||
+        ForceEmitLLVM) {
       types::ID Output =
           Args.hasArg(options::OPT_S) ? types::TY_LLVM_IR : types::TY_LLVM_BC;
       return C.MakeAction<BackendJobAction>(Input, Output);

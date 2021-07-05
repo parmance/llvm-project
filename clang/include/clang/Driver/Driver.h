@@ -498,13 +498,15 @@ public:
   /// invocation.
   bool HandleImmediateArgs(const Compilation &C);
 
-  /// ConstructAction - Construct the appropriate action to do for
-  /// \p Phase on the \p Input, taking in to account arguments
-  /// like -fsyntax-only or --analyze.
+  /// ConstructAction - Construct the appropriate action to do for \p Phase on
+  /// the \p Input, taking in to account arguments like -fsyntax-only or
+  /// --analyze. LLVM IR is emitted instead of target code if the \p
+  /// ForceEmitLLVM is true.
   Action *ConstructPhaseAction(
       Compilation &C, const llvm::opt::ArgList &Args, phases::ID Phase,
       Action *Input,
-      Action::OffloadKind TargetDeviceOffloadKind = Action::OFK_None) const;
+      Action::OffloadKind TargetDeviceOffloadKind = Action::OFK_None,
+      bool ForceEmitLLVM = false) const;
 
   /// BuildJobsForAction - Construct the jobs to perform for the action \p A and
   /// return an InputInfo for the result of running \p A.  Will only construct
