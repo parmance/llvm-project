@@ -945,6 +945,8 @@ def rocm_device_lib_path_EQ : Joined<["--"], "rocm-device-lib-path=">, Group<Lin
 def : Joined<["--"], "hip-device-lib-path=">, Alias<rocm_device_lib_path_EQ>;
 def hip_device_lib_EQ : Joined<["--"], "hip-device-lib=">, Group<Link_Group>,
   HelpText<"HIP device library">;
+def hip_llvm_pass_path_EQ : Joined<["--"], "hip-llvm-pass-path=">,
+  Group<Link_Group>, HelpText<"path to HIP LLVM passes">;
 def hip_version_EQ : Joined<["--"], "hip-version=">,
   HelpText<"HIP version in the format of major.minor.patch">;
 def fhip_dump_offload_linker_script : Flag<["-"], "fhip-dump-offload-linker-script">,

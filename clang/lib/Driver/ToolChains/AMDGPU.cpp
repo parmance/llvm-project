@@ -478,7 +478,9 @@ void RocmInstallationDetector::print(raw_ostream &OS) const {
 
 void RocmInstallationDetector::AddHIPIncludeArgs(const ArgList &DriverArgs,
                                                  ArgStringList &CC1Args) const {
-  bool UsesRuntimeWrapper = VersionMajorMinor > llvm::VersionTuple(3, 5);
+  // FIXME: Workaround for HIP-to-SPIRV.
+  //bool UsesRuntimeWrapper = VersionMajorMinor > llvm::VersionTuple(3, 5);
+  bool UsesRuntimeWrapper = false;
 
   if (!DriverArgs.hasArg(options::OPT_nobuiltininc)) {
     // HIP header includes standard library wrapper headers under clang
@@ -504,10 +506,11 @@ void RocmInstallationDetector::AddHIPIncludeArgs(const ArgList &DriverArgs,
   if (DriverArgs.hasArg(options::OPT_nogpuinc))
     return;
 
-  if (!hasHIPRuntime()) {
-    D.Diag(diag::err_drv_no_hip_runtime);
-    return;
-  }
+  // FIXME: Workaround for HIP-to-SPIRV.
+  // if (!hasHIPRuntime()) {
+  //   D.Diag(diag::err_drv_no_hip_runtime);
+  //   return;
+  // }
 
   CC1Args.push_back("-internal-isystem");
   CC1Args.push_back(DriverArgs.MakeArgString(getIncludePath()));

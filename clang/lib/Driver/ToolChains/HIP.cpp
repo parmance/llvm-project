@@ -37,6 +37,17 @@ namespace {
 const unsigned HIPCodeObjectAlign = 4096;
 } // namespace
 
+static const char *getTempFile(Compilation &C, StringRef Prefix,
+                               StringRef Suffix,
+                               bool SaveTempsEnabled = false) {
+  if (SaveTempsEnabled) {
+    return C.getArgs().MakeArgString(Prefix + "." + Suffix);
+  } else {
+    auto TmpFile = C.getDriver().GetTemporaryPath(Prefix, Suffix);
+    return C.addTempFile(C.getArgs().MakeArgString(TmpFile));
+  }
+}
+
 void AMDGCN::Linker::constructLldCommand(Compilation &C, const JobAction &JA,
                                           const InputInfoList &Inputs,
                                           const InputInfo &Output,
@@ -97,6 +108,61 @@ void AMDGCN::Linker::constructLldCommand(Compilation &C, const JobAction &JA,
                                          Lld, LldArgs, Inputs, Output));
 }
 
+void AMDGCN::Linker::constructSpirLinkCommand(
+    Compilation &C, const JobAction &JA, const InputInfoList &Inputs,
+    const InputInfo &Output, const llvm::opt::ArgList &Args) const {
+
+  assert(!Inputs.empty() && "Must have at least one input.");
+  bool SaveTemps = C.getDriver().isSaveTempsEnabled();
+  std::string Name = std::string(llvm::sys::path::stem(Output.getFilename()));
+  const char *TempOutput = getTempFile(C, Name + "-link", "bc", SaveTemps);
+
+  // Link LLVM bitcode.
+  ArgStringList LinkArgs{};
+  for (auto Input : Inputs)
+    LinkArgs.push_back(Input.getFilename());
+  LinkArgs.append({"-o", TempOutput});
+
+  const char *LlvmLink =
+      Args.MakeArgString(getToolChain().GetProgramPath("llvm-link"));
+  C.addCommand(std::make_unique<Command>(JA, *this, ResponseFileSupport::None(),
+                                         LlvmLink, LinkArgs, Inputs, Output));
+
+  std::vector<std::string> Paths =
+      Args.getAllArgValues(options::OPT_hip_llvm_pass_path_EQ);
+  if (Paths.size()) {
+    // TODO: Make the option reject multiple instances.
+    assert(Paths.size() == 1);
+    llvm::SmallString<0> PassPath(Paths[0]);
+    llvm::sys::path::append(PassPath, "libLLVMHipDynMem.so");
+    const char *PassPathCStr = C.getArgs().MakeArgString(PassPath);
+    const char *OptOutput = getTempFile(C, Name + "-opt", "bc", SaveTemps);
+    ArgStringList OptArgs{TempOutput,   "-enable-new-pm=0", "-load",
+                          PassPathCStr, "-hip-dyn-mem",   "-o",
+                          OptOutput};
+    const char *Opt = Args.MakeArgString(getToolChain().GetProgramPath("opt"));
+    C.addCommand(std::make_unique<Command>(
+        JA, *this, ResponseFileSupport::None(), Opt, OptArgs, Inputs, Output));
+    TempOutput = OptOutput;
+  }
+
+  // Translate bitcode to SPIR-V.
+  //
+  // FIXME: SPV_INTEL_subgroups is HIPLZ requirement. We should propably pass
+  // this option from the clang cmdline. Alternatively, we could use +all
+  // instead but is it too permissive?
+  //
+  // FIXME: Should actually use cl_khr_subgroups instead (and set opencl target
+  // to 2.0)?
+  ArgStringList LlvmSpirvArgs{"--spirv-ext=+SPV_INTEL_subgroups", TempOutput,
+                              "-o", Output.getFilename()};
+  const char *LlvmSpirv =
+      Args.MakeArgString(getToolChain().GetProgramPath("llvm-spirv"));
+  C.addCommand(std::make_unique<Command>(JA, *this, ResponseFileSupport::None(),
+                                         LlvmSpirv, LlvmSpirvArgs, Inputs,
+                                         Output));
+}
+
 // Construct a clang-offload-bundler command to bundle code objects for
 // different GPU's into a HIP fat binary.
 void AMDGCN::constructHIPFatbinCommand(Compilation &C, const JobAction &JA,
@@ -118,13 +184,15 @@ void AMDGCN::constructHIPFatbinCommand(Compilation &C, const JobAction &JA,
   // for backward compatibility. For code object version 4 and greater, the
   // offload kind in bundle ID is 'hipv4'.
   std::string OffloadKind = "hip";
-  if (getAMDGPUCodeObjectVersion(C.getDriver(), Args) >= 4)
-    OffloadKind = OffloadKind + "v4";
+  // Skip this for SPIR-V.
+  //if (getAMDGPUCodeObjectVersion(C.getDriver(), Args) >= 4)
+  //  OffloadKind = OffloadKind + "v4";
   for (const auto &II : Inputs) {
     const auto* A = II.getAction();
-    BundlerTargetArg = BundlerTargetArg + "," + OffloadKind +
-                       "-amdgcn-amd-amdhsa--" +
-                       StringRef(A->getOffloadingArch()).str();
+    BundlerTargetArg =
+        BundlerTargetArg + "," + OffloadKind +
+        // FIXME: Should get device triple from an option.
+        "-spir64-unknown-unknown";
     BundlerInputArg = BundlerInputArg + "," + II.getFilename();
   }
   BundlerArgs.push_back(Args.MakeArgString(BundlerTargetArg));
@@ -227,7 +295,11 @@ void AMDGCN::Linker::ConstructJob(Compilation &C, const JobAction &JA,
   if (JA.getType() == types::TY_HIP_FATBIN)
     return constructHIPFatbinCommand(C, JA, Output.getFilename(), Inputs, Args, *this);
 
-  return constructLldCommand(C, JA, Inputs, Output, Args);
+  if (getToolChain().getTriple().isSPIR()) {
+    return constructSpirLinkCommand(C, JA, Inputs, Output, Args);
+  } else {
+    return constructLldCommand(C, JA, Inputs, Output, Args);
+  }
 }
 
 HIPToolChain::HIPToolChain(const Driver &D, const llvm::Triple &Triple,
@@ -254,7 +326,10 @@ void HIPToolChain::addClangTargetOptions(
     CC1Args.push_back("-fcuda-approx-transcendentals");
 
   if (!DriverArgs.hasFlag(options::OPT_fgpu_rdc, options::OPT_fno_gpu_rdc,
-                          false))
+                          false) &&
+      // The option does not exist if AMDGPU target is not built. The pass is
+      // not run for SPIR-V anyway.
+      !getTriple().isSPIR())
     CC1Args.append({"-mllvm", "-amdgpu-internalize-symbols"});
 
   StringRef MaxThreadsPerBlock =
@@ -307,7 +382,8 @@ HIPToolChain::TranslateArgs(const llvm::opt::DerivedArgList &Args,
 }
 
 Tool *HIPToolChain::buildLinker() const {
-  assert(getTriple().getArch() == llvm::Triple::amdgcn);
+  assert(getTriple().getArch() == llvm::Triple::amdgcn ||
+         getTriple().getArch() == llvm::Triple::spir64);
   return new tools::AMDGCN::Linker(*this);
 }
 
