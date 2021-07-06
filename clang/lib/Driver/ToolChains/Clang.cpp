@@ -5923,9 +5923,12 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
   RenderOpenCLOptions(Args, CmdArgs, InputType);
 
   if (IsHIP) {
-    if (Args.hasFlag(options::OPT_fhip_new_launch_api,
-                     options::OPT_fno_hip_new_launch_api, true))
-      CmdArgs.push_back("-fhip-new-launch-api");
+    // FIXME: Disabled temporarily for HIPCL and HIPLZ which use the old HIP
+    // launch API.
+    //
+    // if (Args.hasFlag(options::OPT_fhip_new_launch_api,
+    //                  options::OPT_fno_hip_new_launch_api, true))
+    //   CmdArgs.push_back("-fhip-new-launch-api");
     if (Args.hasFlag(options::OPT_fgpu_allow_device_init,
                      options::OPT_fno_gpu_allow_device_init, false))
       CmdArgs.push_back("-fgpu-allow-device-init");
@@ -6371,7 +6374,12 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
   // Enable vectorization per default according to the optimization level
   // selected. For optimization levels that want vectorization we use the alias
   // option to simplify the hasFlag logic.
-  bool EnableVec = shouldEnableVectorizerAtOLevel(Args, false);
+  bool EnableVec =
+      shouldEnableVectorizerAtOLevel(Args, false) &&
+      // FIXME: Temporary solution. Vectorizer breaks SPIR-V
+      // emission by introducing vector reduction intrinsics which
+      // llvm-spirv does not handle. Perhaps, upcoming SPIR-V BE fixes this.
+      !(IsHIPDevice && Triple.isSPIR());
   OptSpecifier VectorizeAliasOption =
       EnableVec ? options::OPT_O_Group : options::OPT_fvectorize;
   if (Args.hasFlag(options::OPT_fvectorize, VectorizeAliasOption,
@@ -6379,7 +6387,9 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
     CmdArgs.push_back("-vectorize-loops");
 
   // -fslp-vectorize is enabled based on the optimization level selected.
-  bool EnableSLPVec = shouldEnableVectorizerAtOLevel(Args, true);
+  bool EnableSLPVec = shouldEnableVectorizerAtOLevel(Args, true) &&
+                      // FIXME: Temporary solution. See FIXME comment above.
+                      !(IsHIPDevice && Triple.isSPIR());
   OptSpecifier SLPVectAliasOption =
       EnableSLPVec ? options::OPT_O_Group : options::OPT_fslp_vectorize;
   if (Args.hasFlag(options::OPT_fslp_vectorize, SLPVectAliasOption,
