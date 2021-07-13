@@ -118,8 +118,7 @@ void AMDGCN::Linker::constructSpirLinkCommand(
   const char *TempOutput = getTempFile(C, Name + "-link", "bc", SaveTemps);
 
   // Link LLVM bitcode.
-  // TODO: -only-needed may be unnecessary.
-  ArgStringList LinkArgs{"-only-needed"};
+  ArgStringList LinkArgs;
   for (auto Input : Inputs)
     LinkArgs.push_back(Input.getFilename());
   LinkArgs.append({"-o", TempOutput});
