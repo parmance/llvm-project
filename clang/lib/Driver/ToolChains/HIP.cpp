@@ -137,9 +137,8 @@ void AMDGCN::Linker::constructSpirLinkCommand(
     llvm::sys::path::append(PassPath, "libLLVMHipDynMem.so");
     const char *PassPathCStr = C.getArgs().MakeArgString(PassPath);
     const char *OptOutput = getTempFile(C, Name + "-opt", "bc", SaveTemps);
-    ArgStringList OptArgs{TempOutput,   "-enable-new-pm=0", "-load",
-                          PassPathCStr, "-hip-dyn-mem",   "-o",
-                          OptOutput};
+    ArgStringList OptArgs{TempOutput,     "-load-pass-plugin", PassPathCStr,
+                          "-passes=hip-dyn-mem", "-o",    OptOutput};
     const char *Opt = Args.MakeArgString(getToolChain().GetProgramPath("opt"));
     C.addCommand(std::make_unique<Command>(
         JA, *this, ResponseFileSupport::None(), Opt, OptArgs, Inputs, Output));
