@@ -133,12 +133,19 @@ void AMDGCN::Linker::constructSpirLinkCommand(
   if (Paths.size()) {
     // TODO: Make the option reject multiple instances.
     assert(Paths.size() == 1);
+
     llvm::SmallString<0> PassPath(Paths[0]);
     llvm::sys::path::append(PassPath, "libLLVMHipDynMem.so");
-    const char *PassPathCStr = C.getArgs().MakeArgString(PassPath);
+    const char *PassPathCStr0 = C.getArgs().MakeArgString(PassPath);
+    PassPath = Paths[0];
+    llvm::sys::path::append(PassPath, "libLLVMHipStripCompilerUsed.so");
+    const char *PassPathCStr1 = C.getArgs().MakeArgString(PassPath);
     const char *OptOutput = getTempFile(C, Name + "-opt", "bc", SaveTemps);
-    ArgStringList OptArgs{TempOutput,     "-load-pass-plugin", PassPathCStr,
-                          "-passes=hip-dyn-mem", "-o",    OptOutput};
+    ArgStringList OptArgs{
+        TempOutput,    "-load-pass-plugin",
+        PassPathCStr0, "-load-pass-plugin",
+        PassPathCStr1, "-passes=hip-dyn-mem,hip-strip-compiler-used",
+        "-o",          OptOutput};
     const char *Opt = Args.MakeArgString(getToolChain().GetProgramPath("opt"));
     C.addCommand(std::make_unique<Command>(
         JA, *this, ResponseFileSupport::None(), Opt, OptArgs, Inputs, Output));
