@@ -2258,18 +2258,17 @@ static void setUsedInitializer(GlobalVariable &V,
   }
 
   // Type of pointer to the array of pointers.
-  PointerType *PtrTy = cast<PointerType>(
-      V.getType()->getPointerElementType()->getArrayElementType());
+  PointerType *Int8PtrTy = Type::getInt8PtrTy(V.getContext(), 0);
 
   SmallVector<Constant *, 8> UsedArray;
   for (GlobalValue *GV : Init) {
     Constant *Cast
-      = ConstantExpr::getPointerBitCastOrAddrSpaceCast(GV, PtrTy);
+      = ConstantExpr::getPointerBitCastOrAddrSpaceCast(GV, Int8PtrTy);
     UsedArray.push_back(Cast);
   }
   // Sort to get deterministic order.
   array_pod_sort(UsedArray.begin(), UsedArray.end(), compareNames);
-  ArrayType *ATy = ArrayType::get(PtrTy, UsedArray.size());
+  ArrayType *ATy = ArrayType::get(Int8PtrTy, UsedArray.size());
 
   Module *M = V.getParent();
   V.removeFromParent();
