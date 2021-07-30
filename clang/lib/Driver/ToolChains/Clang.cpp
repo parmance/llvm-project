@@ -5923,12 +5923,9 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
   RenderOpenCLOptions(Args, CmdArgs, InputType);
 
   if (IsHIP) {
-    // FIXME: Disabled temporarily for HIPCL and HIPLZ which use the old HIP
-    // launch API.
-    //
-    // if (Args.hasFlag(options::OPT_fhip_new_launch_api,
-    //                  options::OPT_fno_hip_new_launch_api, true))
-    //   CmdArgs.push_back("-fhip-new-launch-api");
+    if (Args.hasFlag(options::OPT_fhip_new_launch_api,
+                     options::OPT_fno_hip_new_launch_api, true))
+      CmdArgs.push_back("-fhip-new-launch-api");
     if (Args.hasFlag(options::OPT_fgpu_allow_device_init,
                      options::OPT_fno_gpu_allow_device_init, false))
       CmdArgs.push_back("-fgpu-allow-device-init");
