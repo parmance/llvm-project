@@ -591,9 +591,7 @@ CodeGenFunction::DecodeAddrUsedInPrologue(llvm::Value *F,
 void CodeGenFunction::EmitOpenCLKernelMetadata(const FunctionDecl *FD,
                                                llvm::Function *Fn)
 {
-  if (!FD->hasAttr<OpenCLKernelAttr>() &&
-      !(FD->hasAttr<CUDAGlobalAttr>() && getLangOpts().HIP &&
-        getTarget().getTriple().isSPIR()))
+  if (!FD->hasAttr<OpenCLKernelAttr>())
     return;
 
   llvm::LLVMContext &Context = getLLVMContext();
@@ -898,8 +896,7 @@ void CodeGenFunction::StartFunction(GlobalDecl GD, QualType RetTy,
   if (D && D->hasAttr<NoProfileFunctionAttr>())
     Fn->addFnAttr(llvm::Attribute::NoProfile);
 
-  if (getLangOpts().OpenCL ||
-      (getLangOpts().HIP && Target.getTriple().isSPIR())) {
+  if (getLangOpts().OpenCL) {
     // Add metadata for a kernel function.
     if (const FunctionDecl *FD = dyn_cast_or_null<FunctionDecl>(D))
       EmitOpenCLKernelMetadata(FD, Fn);
