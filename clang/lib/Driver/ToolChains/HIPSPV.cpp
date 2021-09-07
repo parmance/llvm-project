@@ -97,6 +97,25 @@ void HIPSPV::Linker::constructLinkAndEmitSpirvCommand(
 
   // Emit SPIR-V binary.
 
+  // Use llc. Meant for testing out LLVM SPIR-V backend. Eventually HIPSPV will
+  // switch to use in-tree SPIR-V backend for binary emission.
+  if (auto *A = Args.getLastArg(options::OPT_spirv_use_llc,
+                                options::OPT_spirv_use_llc_EQ)) {
+    assert(A->getNumValues() <= 1);
+    const char *LlcExe = nullptr;
+    if (A->getNumValues() == 1 && !StringRef(A->getValue()).empty())
+      LlcExe = A->getValue();
+    else
+      LlcExe = Args.MakeArgString(getToolChain().GetProgramPath("llc"));
+    ArgStringList LlcArgs{"--mattr=+spirv1.1", "--filetype=obj", TempFile, "-o",
+                          Output.getFilename()};
+    C.addCommand(std::make_unique<Command>(JA, *this,
+                                           ResponseFileSupport::None(), LlcExe,
+                                           LlcArgs, Inputs, Output));
+    return;
+  }
+
+  // Use SPIRV-LLVM Translator.
   llvm::opt::ArgStringList TrArgs{"--spirv-max-version=1.1",
                                   "--spirv-ext=+all"};
   InputInfo TrInput = InputInfo(types::TY_LLVM_BC, TempFile, "");
