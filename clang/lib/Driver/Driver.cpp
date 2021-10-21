@@ -41,6 +41,7 @@
 #include "ToolChains/PPCLinux.h"
 #include "ToolChains/PS4CPU.h"
 #include "ToolChains/RISCVToolchain.h"
+#include "ToolChains/SPIRV.h"
 #include "ToolChains/Solaris.h"
 #include "ToolChains/TCE.h"
 #include "ToolChains/VEToolchain.h"
@@ -4337,6 +4338,12 @@ class ToolSelector final {
     if (!T)
       return nullptr;
 
+    // Can't collapse if we don't have codegen support unless we are
+    // emitting LLVM IR.
+    bool OutputIsLLVM = types::isLLVMIR(ActionInfo[0].JA->getType());
+    if (!T->hasIntegratedBackend() && !(OutputIsLLVM && T->canEmitIR()))
+      return nullptr;
+
     // When using -fembed-bitcode, it is required to have the same tool (clang)
     // for both CompilerJA and BackendJA. Otherwise, combine two stages.
     if (EmbedBitcode) {
@@ -4404,6 +4411,12 @@ class ToolSelector final {
     // Get compiler tool.
     const Tool *T = TC.SelectTool(*CJ);
     if (!T)
+      return nullptr;
+
+    // Can't collapse if we don't have codegen support unless we are
+    // emitting LLVM IR.
+    bool OutputIsLLVM = types::isLLVMIR(ActionInfo[0].JA->getType());
+    if (!T->hasIntegratedBackend() && !(OutputIsLLVM && T->canEmitIR()))
       return nullptr;
 
     if (T->canEmitIR() && ((SaveTemps && !InputIsBitcode) || EmbedBitcode))
@@ -5418,6 +5431,10 @@ const ToolChain &Driver::getToolChain(const ArgList &Args,
         break;
       case llvm::Triple::ve:
         TC = std::make_unique<toolchains::VEToolChain>(*this, Target, Args);
+        break;
+      case llvm::Triple::spirv32:
+      case llvm::Triple::spirv64:
+        TC = std::make_unique<toolchains::SPIRVToolChain>(*this, Target, Args);
         break;
       default:
         if (Target.getVendor() == llvm::Triple::Myriad)
