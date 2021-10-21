@@ -1529,6 +1529,13 @@ def fmemory_profile_EQ : Joined<["-"], "fmemory-profile=">,
     Group<f_Group>, Flags<[CC1Option]>, MetaVarName<"<directory>">,
     HelpText<"Enable heap memory profiling and dump results into <directory>">;
 
+def spirv_max_version_EQ : Joined<["--"], "spirv-max-version">,
+    HelpText<"Specify maximum SPIR-V version which can be emitted">;
+def spirv_ext_EQ : CommaJoined<["--"], "spirv-ext">,
+    HelpText<"Specify comma separated list of allowed/disallowed SPIR-V "
+    "extensions prefixed with '+' or '-'. '+' and '-' allows and disallows "
+    "the extension, respectively. Special value 'all' affects all extensions">;
+
 // Begin sanitizer flags. These should all be core options exposed in all driver
 // modes.
 let Flags = [CC1Option, CoreOption] in {
