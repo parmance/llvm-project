@@ -249,7 +249,7 @@ public:
     MachO,
     Wasm,
     XCOFF,
-    SPIRV
+    SPIRV,
   };
 
 private:
