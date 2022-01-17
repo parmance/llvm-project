@@ -4180,9 +4180,6 @@ LangAS CodeGenModule::GetGlobalConstantAddressSpace() const {
     return LangAS::opencl_constant;
   if (LangOpts.SYCLIsDevice)
     return LangAS::sycl_global;
-  if (LangOpts.HIP && LangOpts.CUDAIsDevice &&
-      getTriple().getArch() == llvm::Triple::spir64)
-    return LangAS::cuda_device;
   if (auto AS = getTarget().getConstantAddressSpace())
     return AS.getValue();
   return LangAS::Default;
