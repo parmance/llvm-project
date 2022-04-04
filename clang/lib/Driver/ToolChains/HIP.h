@@ -102,6 +102,9 @@ public:
   const ToolChain &HostTC;
   void checkTargetID(const llvm::opt::ArgList &DriverArgs) const override;
 
+  void adjustDebugInfoKind(codegenoptions::DebugInfoKind &DebugInfoKind,
+                           const llvm::opt::ArgList &Args) const override;
+
 protected:
   Tool *buildLinker() const override;
 };

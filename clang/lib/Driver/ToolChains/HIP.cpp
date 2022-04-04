@@ -560,3 +560,12 @@ void HIPToolChain::checkTargetID(const llvm::opt::ArgList &DriverArgs) const {
     }
   }
 }
+
+void HIPToolChain::adjustDebugInfoKind(
+    codegenoptions::DebugInfoKind &DebugInfoKind,
+    const llvm::opt::ArgList &Args) const {
+  // Debug info generation is disabled for SPIRV-LLVM-Translator
+  // which currently aborts on the presence of DW_OP_LLVM_convert.
+  // TODO: Enable debug info when the SPIR-V backend arrives.
+  DebugInfoKind = codegenoptions::NoDebugInfo;
+}
