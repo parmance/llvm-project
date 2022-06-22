@@ -116,12 +116,24 @@ void HIPSPV::Linker::constructLinkAndEmitSpirvCommand(
   }
 
   // Emit SPIR-V binary.
-  auto MaxSPIRVVersionOpt =
-      Args.MakeArgString("--spirv-max-version=" +
-                         getSPIRVVersionString(getToolChain().getTriple()));
-  llvm::opt::ArgStringList TrArgs{MaxSPIRVVersionOpt, "--spirv-ext=+all"};
-  InputInfo TrInput = InputInfo(types::TY_LLVM_BC, TempFile, "");
-  SPIRV::constructTranslateCommand(C, *this, JA, Output, TrInput, TrArgs);
+  if (Args.hasFlag(options::OPT_fintegrated_objemitter,
+                   options::OPT_fno_integrated_objemitter,
+                   // TODO: When the SPIR-V backend is in a good shape we want
+                   //       to use it by default.
+                   false)) {
+    llvm::opt::ArgStringList LlcArgs{"--filetype=obj", "-O0", TempFile, "-o",
+                                     Output.getFilename()};
+    const char *Llc = Args.MakeArgString(getToolChain().GetProgramPath("llc"));
+    C.addCommand(std::make_unique<Command>(
+        JA, *this, ResponseFileSupport::None(), Llc, LlcArgs, Inputs, Output));
+  } else {
+    auto MaxSPIRVVersionOpt =
+        Args.MakeArgString("--spirv-max-version=" +
+                           getSPIRVVersionString(getToolChain().getTriple()));
+    llvm::opt::ArgStringList TrArgs{MaxSPIRVVersionOpt, "--spirv-ext=+all"};
+    InputInfo TrInput = InputInfo(types::TY_LLVM_BC, TempFile, "");
+    SPIRV::constructTranslateCommand(C, *this, JA, Output, TrInput, TrArgs);
+  }
 }
 
 void HIPSPV::Linker::ConstructJob(Compilation &C, const JobAction &JA,
