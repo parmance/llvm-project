@@ -60,6 +60,26 @@ static std::string findPassPlugin(const Driver &D,
   return std::string();
 }
 
+static StringRef getSPIRVVersionString(const llvm::Triple &T) {
+  assert(T.isSPIRV());
+  switch (T.getSubArch()) {
+  default:
+    return "1.1";
+  case llvm::Triple::SPIRVSubArch_v10:
+    return "1.0";
+  case llvm::Triple::SPIRVSubArch_v11:
+    return "1.1";
+  case llvm::Triple::SPIRVSubArch_v12:
+    return "1.2";
+  case llvm::Triple::SPIRVSubArch_v13:
+    return "1.3";
+  case llvm::Triple::SPIRVSubArch_v14:
+    return "1.4";
+  case llvm::Triple::SPIRVSubArch_v15:
+    return "1.5";
+  }
+}
+
 void HIPSPV::Linker::constructLinkAndEmitSpirvCommand(
     Compilation &C, const JobAction &JA, const InputInfoList &Inputs,
     const InputInfo &Output, const llvm::opt::ArgList &Args) const {
@@ -96,9 +116,10 @@ void HIPSPV::Linker::constructLinkAndEmitSpirvCommand(
   }
 
   // Emit SPIR-V binary.
-
-  llvm::opt::ArgStringList TrArgs{"--spirv-max-version=1.1",
-                                  "--spirv-ext=+all"};
+  auto MaxSPIRVVersionOpt =
+      Args.MakeArgString("--spirv-max-version=" +
+                         getSPIRVVersionString(getToolChain().getTriple()));
+  llvm::opt::ArgStringList TrArgs{MaxSPIRVVersionOpt, "--spirv-ext=+all"};
   InputInfo TrInput = InputInfo(types::TY_LLVM_BC, TempFile, "");
   SPIRV::constructTranslateCommand(C, *this, JA, Output, TrInput, TrArgs);
 }
