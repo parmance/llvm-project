@@ -17,7 +17,7 @@
 #include "SPIRVRegisterBankInfo.h"
 #include "SPIRVTargetMachine.h"
 #include "llvm/Support/Host.h"
-#include "llvm/Support/TargetRegistry.h"
+#include "llvm/MC/TargetRegistry.h"
 
 using namespace llvm;
 

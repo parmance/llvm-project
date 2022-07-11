@@ -91,10 +91,6 @@ public:
     amdil64,        // AMDIL with 64-bit pointers
     hsail,          // AMD HSAIL
     hsail64,        // AMD HSAIL with 64-bit pointers
-    spir,           // SPIR: standard portable IR for OpenCL 32-bit version
-    spir64,         // SPIR: standard portable IR for OpenCL 64-bit version
-    spirv32,        // SPIR-V with 32-bit pointers
-    spirv64,        // SPIR-V with 64-bit pointers
     kalimba,        // Kalimba: generic kalimba
     shave,          // SHAVE: Movidius vector VLIW processors
     lanai,          // Lanai: Lanai 32-bit
@@ -103,6 +99,8 @@ public:
     renderscript32, // 32-bit RenderScript
     renderscript64, // 64-bit RenderScript
     ve,             // NEC SX-Aurora Vector Engine
+    spir,           // SPIR: standard portable IR for OpenCL 32-bit version
+    spir64,         // SPIR: standard portable IR for OpenCL 64-bit version
     spirv32,        // SPIR-V with 32-bit pointers
     spirv64,        // SPIR-V with 64-bit pointers
     spirvlogical,   // SPIR-V with logical addressing
@@ -150,7 +148,15 @@ public:
 
     MipsSubArch_r6,
 
-    PPCSubArch_spe
+    PPCSubArch_spe,
+
+    // SPIR-V sub-arch corresponds to its version.
+    SPIRVSubArch_v10,
+    SPIRVSubArch_v11,
+    SPIRVSubArch_v12,
+    SPIRVSubArch_v13,
+    SPIRVSubArch_v14,
+    SPIRVSubArch_v15,
   };
   enum VendorType {
     UnknownVendor,
