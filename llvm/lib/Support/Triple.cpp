@@ -65,10 +65,11 @@ StringRef Triple::getArchTypeName(ArchType Kind) {
   case sparc:          return "sparc";
   case sparcel:        return "sparcel";
   case sparcv9:        return "sparcv9";
-  case spir64:         return "spir64";
   case spir:           return "spir";
+  case spir64:         return "spir64";
   case spirv32:        return "spirv32";
   case spirv64:        return "spirv64";
+  case spirvlogical:   return "spirvlogical";
   case systemz:        return "s390x";
   case tce:            return "tce";
   case tcele:          return "tcele";
@@ -80,9 +81,6 @@ StringRef Triple::getArchTypeName(ArchType Kind) {
   case x86:            return "i386";
   case x86_64:         return "x86_64";
   case xcore:          return "xcore";
-  case spirv32:        return "spirv32";
-  case spirv64:        return "spirv64";
-  case spirvlogical:   return "spirvlogical";
   }
 
   llvm_unreachable("Invalid ArchType!");
@@ -154,7 +152,8 @@ StringRef Triple::getArchTypePrefix(ArchType Kind) {
   case spir64:      return "spir";
 
   case spirv32:
-  case spirv64:     return "spirv";
+  case spirv64:
+  case spirvlogical: return "spirv";
 
   case kalimba:     return "kalimba";
   case lanai:       return "lanai";
@@ -168,9 +167,6 @@ StringRef Triple::getArchTypePrefix(ArchType Kind) {
   case ve:          return "ve";
   case csky:        return "csky";
   
-  case spirv32:
-  case spirv64:
-  case spirvlogical: return "spirv";
   }
 }
 
@@ -618,6 +614,17 @@ static Triple::SubArchType parseSubArch(StringRef SubArchName) {
 
   if (SubArchName == "arm64e")
     return Triple::AArch64SubArch_arm64e;
+
+  if (SubArchName.startswith("spirv"))
+    return StringSwitch<Triple::SubArchType>(SubArchName)
+        .EndsWith("v1.0", Triple::SPIRVSubArch_v10)
+        .EndsWith("v1.1", Triple::SPIRVSubArch_v11)
+        .EndsWith("v1.2", Triple::SPIRVSubArch_v12)
+        .EndsWith("v1.3", Triple::SPIRVSubArch_v13)
+        .EndsWith("v1.4", Triple::SPIRVSubArch_v14)
+        .EndsWith("v1.5", Triple::SPIRVSubArch_v15)
+        .Default(Triple::NoSubArch);
+
 
   StringRef ARMSubArch = ARM::getCanonicalArchName(SubArchName);
 
@@ -1331,7 +1338,6 @@ static unsigned getArchPointerBitWidth(llvm::Triple::ArchType Arch) {
   case llvm::Triple::wasm32:
   case llvm::Triple::x86:
   case llvm::Triple::xcore:
-  case llvm::Triple::spirv32:
     return 32;
 
   case llvm::Triple::aarch64:
@@ -1356,7 +1362,6 @@ static unsigned getArchPointerBitWidth(llvm::Triple::ArchType Arch) {
   case llvm::Triple::ve:
   case llvm::Triple::wasm64:
   case llvm::Triple::x86_64:
-  case llvm::Triple::spirv64:
     return 64;
   }
   llvm_unreachable("Invalid architecture value");
@@ -1420,7 +1425,6 @@ Triple Triple::get32BitArchVariant() const {
   case Triple::wasm32:
   case Triple::x86:
   case Triple::xcore:
-  case Triple::spirv32:
     // Already 32-bit.
     break;
 
@@ -1443,10 +1447,9 @@ Triple Triple::get32BitArchVariant() const {
   case Triple::sparcv9:        T.setArch(Triple::sparc);   break;
   case Triple::spir64:         T.setArch(Triple::spir);    break;
   case Triple::spirv64:        T.setArch(Triple::spirv32); break;
+  case Triple::spirvlogical:   T.setArch(Triple::spirv32); break;
   case Triple::wasm64:         T.setArch(Triple::wasm32);  break;
   case Triple::x86_64:         T.setArch(Triple::x86);     break;
-  case Triple::spirv64:        T.setArch(Triple::spirv32); break;
-  case Triple::spirvlogical:   T.setArch(Triple::spirv32); break;
   }
   return T;
 }
@@ -1494,7 +1497,6 @@ Triple Triple::get64BitArchVariant() const {
   case Triple::ve:
   case Triple::wasm64:
   case Triple::x86_64:
-  case Triple::spirv64:
     // Already 64-bit.
     break;
 
@@ -1522,7 +1524,6 @@ Triple Triple::get64BitArchVariant() const {
   case Triple::thumbeb:         T.setArch(Triple::aarch64_be); break;
   case Triple::wasm32:          T.setArch(Triple::wasm64);     break;
   case Triple::x86:             T.setArch(Triple::x86_64);     break;
-  case Triple::spirv32:         T.setArch(Triple::spirv64);    break;
   case Triple::spirvlogical:    T.setArch(Triple::spirv64);    break;
   }
   return T;
@@ -1558,6 +1559,7 @@ Triple Triple::getBigEndianArchVariant() const {
   case Triple::spir:
   case Triple::spirv32:
   case Triple::spirv64:
+  case Triple::spirvlogical:
   case Triple::wasm32:
   case Triple::wasm64:
   case Triple::x86:
@@ -1565,9 +1567,6 @@ Triple Triple::getBigEndianArchVariant() const {
   case Triple::xcore:
   case Triple::ve:
   case Triple::csky:
-  case Triple::spirv32:
-  case Triple::spirv64:
-  case Triple::spirvlogical:
 
   // ARM is intentionally unsupported here, changing the architecture would
   // drop any arch suffixes.
@@ -1666,6 +1665,7 @@ bool Triple::isLittleEndian() const {
   case Triple::spir:
   case Triple::spirv32:
   case Triple::spirv64:
+  case Triple::spirvlogical:
   case Triple::tcele:
   case Triple::thumb:
   case Triple::ve:
@@ -1674,9 +1674,6 @@ bool Triple::isLittleEndian() const {
   case Triple::x86:
   case Triple::x86_64:
   case Triple::xcore:
-  case Triple::spirv32:
-  case Triple::spirv64:
-  case Triple::spirvlogical:
     return true;
   default:
     return false;
