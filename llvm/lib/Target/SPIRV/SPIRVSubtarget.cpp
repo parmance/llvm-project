@@ -82,7 +82,7 @@ SPIRVSubtarget &SPIRVSubtarget::initSubtargetDependencies(StringRef CPU,
                                                           StringRef FS) {
   ParseSubtargetFeatures(CPU, /*TuneCPU=*/CPU, FS);
   if (SPIRVVersion == 0)
-    SPIRVVersion = 14;
+    SPIRVVersion = 12;
   if (OpenCLVersion == 0)
     OpenCLVersion = 22;
   return *this;
